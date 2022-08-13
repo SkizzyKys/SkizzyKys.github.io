@@ -1,8 +1,6 @@
 ## Hello, I am Kyle Moses, and this is my GitHub
 
-You can use the [editor on GitHub](https://github.com/SkizzyKys/SkizzyKys.github.io/edit/main/README.md) to maintain and preview the content for your website in Markdown files.
-
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+Before I started my degree plan, I knew a decent amount of code, but not how to professionally format and write it. I was not great with commenting code or using functions correctly. The plan of this portfolio 
 
 ### Markdown
 
