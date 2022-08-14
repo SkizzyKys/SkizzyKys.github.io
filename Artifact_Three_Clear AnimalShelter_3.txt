@@ -1,0 +1,188 @@
+
+from jupyter_plotly_dash import JupyterDash
+import dash
+import dash_leaflet as dl
+import dash_core_components as dcc
+import dash_html_components as html
+import plotly.express as px
+import dash_table as dt
+from dash.dependencies import Input, Output, State
+import base64
+import os
+import numpy as np
+import pandas as pd
+from pymongo import MongoClient
+from bson.json_util import dumps
+
+# Name of CRUD python module. Imports it to work together
+from AnimalShelter_CRUD import AnimalShelter
+
+
+###########################
+# Data Manipulation / Model
+###########################
+# Username and Password (clear text inside script)
+# Get username and password from the user
+username = input ("Please enter the username \n")
+password = input ("Please enter the password \n")
+shelter = AnimalShelter(username, password)
+
+# class read method must support return of cursor object and accept projection json input
+df = pd.DataFrame.from_records(shelter.read({}))
+
+#########################
+# Dashboard Layout / View
+#########################
+app = JupyterDash('SimpleExample')
+
+#Input any logo or picture you want here. For this example it is
+#Grazioso Salvare’s logo
+image_filename = 'Grazioso Salvare Logo.png' # replace with your own image
+encoded_image = base64.b64encode(open(image_filename, 'rb').read())
+
+app.layout = html.Div([
+    html.Div(id='hidden-div', style={'display':'none'}),
+    html.Center(html.B(html.H1('Kyle T. Moses, Feb 2022'))),
+    html.Img(src='data:image/png;base64,{}'.format(encoded_image.decode())),
+    html.Hr(),
+    html.Div(className='row',
+             style={'display' : 'flex'},
+                 children =[
+                     html.Button(id='submit-button-one', n_clicks=0, children='Water Rescue'),
+                     html.Button(id='submit-button-two', n_clicks=0, children='Mountain or Wilderness Rescue'),
+                     html.Button(id='submit-button-three', n_clicks=0, children='Disaster Rescue or Individual Tracking'),
+                     html.Button(id='submit-button-four', n_clicks=0, children='Kittens 6 weeks - 1 year'),
+                     html.button(id='submit-button-five', n_clicks=0, children='Adult Cats 1 year and older'),
+                     html.button(id='submit-button-six', n_clicks=0, children='Birds'),
+                     html.Button(id='submit-button-seven', n_clicks=0, children='Reset')
+                 ]
+
+
+    ),
+    
+#Interactive filtering options
+#This makes the datatable have many options to search through.
+    html.Hr(),
+    
+    dt.DataTable(
+        id='datatable-id',
+        columns=[
+            {"name": i, "id": i, "deletable": False, "selectable": False} for i in df.columns
+        ],
+        data=df.to_dict('records'),
+        
+#It does not allow the user to edit the table unless inside the database, but does allow them to search through easily.
+        editable=False,
+        filter_action="native",
+        sort_action="native",
+        sort_mode="multi",
+        column_selectable="single",
+        row_selectable="multi",
+        row_deletable=False,
+        selected_columns=[],
+        selected_rows=[],
+        page_action="native",
+        page_current=0,
+        page_size=20,
+        style_as_list_view=True,
+        
+    ),
+    html.Br(),
+     html.Hr(),
+    
+#This sets up the graphs at the bottom of the site
+    html.Div(className='row',
+         style={'display' : 'flex'},
+             children=[
+        html.Div(
+            id='graph-id',
+            className='col s12 m6',
+
+            ),
+        html.Div(
+            id='map-id',
+            className='col s12 m6',
+            )
+        ])
+])
+
+#############################################
+# Interaction Between Components / Controller
+#############################################
+
+# Creates buttons for the site to make filtering even easier if you only want specific options
+
+@app.callback(Output('datatable-id',"data"),
+             [Input('submit-button-one','n_clicks'),Input('submit-button-two','n_clicks'),Input('submit-button-three','n_clicks'),Input('submit-button-four','n_clicks'), Input('submit-button-five','n_clicks'), Input('submit-button-six','n_clicks'), Input('submit-button-seven','n_clicks')
+             ])
+def on_click(bt1, bt2, bt3, bt4, bt5, bt6, bt7):
+    #This is the Start Case
+    changed_id = [p['prop']]
+    if (int(bt1) == 0 and int(bt2) == 0 and int(bt3) == 0 and int(bt4) == 0 and int(bt5) == 0 and int(bt6) == 0 and int(bt7) == 0):
+        df = pd.DataFrame.from_records(shelter.readAll({})) 
+        
+        
+    elif (int(bt1) > int(bt2) and int(bt3) and int(bt4) and int(bt5) and int(bt6) and int(bt7)):
+        df = pd.DataFrame(list(shelter({"animal_type":"Dog","breed":{"$in":["Labrador Retriever Mix","Chesapeake Bay Retriever","Newfoundland"]},"sex_upon_outcome":"Intact Female","age_upon_outcome_in_weeks":{"$gte":26},"age_upon_outcome_in_weeks":{"$lte":156}})))                                
+    elif (int(bt2) > int(bt1) and int(bt3) and int(bt4) and int(bt5) and int(bt6) and int(bt7)):
+        df = pd.DataFrame(list(shelter.readAll({"animal_type":"Dog","breed":{"$in":["German Shepherd","Alaskan Malamute","Old English Sheepdog","Siberian Husky","Rottweiler"]},"sex_upon_outcome":"Intact Male","age_upon_outcome_in_weeks":{"$gte":26},"age_upon_outcome_in_weeks":{"$lte":156}})))
+    elif (int(bt3) > int(bt2) and int(bt1) and int(bt4) and int(bt5) and int(bt6) and int(bt7)):
+        df = pd.DataFrame(list(shelter.readAll({"animal_type":"Dog","breed":{"$in":["Doberman Pinscher","German Shepherd","Golden Retriever","Bloodhound","Rottweiler"]},"sex_upon_outcome":"Intact Male","age_upon_outcome_in_weeks":{"$gte":20},"age_upon_outcome_in_weeks":{"$lte":300}})))
+    elif (int(bt4) > int(bt2) and int(bt3) and int(bt1) and int(bt5) and int(bt6) and int(bt7)):
+        df = pd.DataFrame(list(shelter.readAll({"animal_type":"Cat", "age_upon_outcome_in_weeks":{"$gte":6},"age_upon_outcome_in_weeks":{"$lte":52}})))
+    elif (int(bt5) > int(bt2) and int(bt3) and int(bt1) and int(bt4) and int(bt6) and int(bt7)):
+        df = pd.DataFrame(list(shelter.readAll({"animal_type":"Cat", "age_upon_outcome_in_weeks":{"$gte":42}})))
+    elif (int(bt6) > int(bt2) and int(bt3) and int(bt1) and int(bt4) and int(bt5) and int(bt7)):
+        df = pd.DataFrame(list(shelter.readAll({"animal_type":"Bird"})))
+    elif (int(bt7) > int(bt2) and int(bt3) and int(bt1) and int(bt4) and int(bt5) and int(bt6)):
+        df = pd.DataFrame.from_records(shelter.readAll({}))
+    return df.to_dict('records')
+
+
+#This callback will highlight a row on the data table when the user selects it
+@app.callback(
+    Output('datatable-id', 'selected_rows'),
+    [Input('datatable-id', 'selected_columns')]
+)
+def update_styles(selected_columns):
+    return [{
+        'if': { 'column_id': i },
+        'background_color': '#D2F3FF'
+    } for i in selected_columns]
+
+# This is the code for two graphs at the bottom of the site.
+@app.callback(
+    Output('graph-id', "children"),
+    [Input('datatable-id', "derived_viewport_data")])
+def update_graphs(viewData):
+    # pie chart
+    return [
+        dcc.Graph(
+            figure = px.pie(viewData, "breed")
+        )   
+    ]
+
+
+@app.callback(
+    Output('map-id', "children"),
+    [Input('datatable-id', "derived_viewport_data")])
+def update_map(viewData):
+# geolocation chart
+    dff = pd.DataFrame.from_dict(viewData)
+    # Autstin TX is at [30.75,-97.48]
+    return [
+        dl.Map(style={'width': '1000px', 'height': '500px'}, center=[30.75, -97.48], zoom=10, children= [
+            dl.TileLayer(id="base-layer-id"),
+            # Marker with tool tip and popup
+            dl.Marker(position=[30.75,-97.48], children= [
+                dl.Tooltip(dff.iloc[0,4]),
+                dl.Popup([
+                    html.H1("Animal Name"),
+                    html.P(dff.iloc[1,9])
+                ])
+            ])
+        ])
+    ]
+    
+
+app
